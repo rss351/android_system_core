@@ -266,7 +266,6 @@ static void handle_property_set_fd()
     int n;
     int s;
     int r;
-    int res;
     int ret;
     struct ucred cr;
     struct sockaddr_un addr;
