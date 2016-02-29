@@ -57,6 +57,7 @@
 #include "util.h"
 #include "ueventd.h"
 #include "watchdogd.h"
+#include "vendor_init.h"
 
 struct selabel_handle *sehandle;
 struct selabel_handle *sehandle_prop;
@@ -514,6 +515,9 @@ static void msg_restart(const char *name)
 
 void handle_control_message(const char *msg, const char *arg)
 {
+    if (!vendor_handle_control_message(msg, arg))
+        return;
+
     if (!strcmp(msg,"start")) {
         msg_start(arg);
     } else if (!strcmp(msg,"stop")) {
@@ -857,7 +861,7 @@ static int queue_property_triggers_action(int nargs, char **args)
 }
 
 #if BOOTCHART
-static int bootchart_init_action(int nargs, char **args)
+int bootchart_init_action(int nargs, char **args)
 {
     bootchart_count = bootchart_init();
     if (bootchart_count < 0) {
@@ -1065,7 +1069,11 @@ int main(int argc, char **argv)
     mkdir("/dev/pts", 0755);
     */
     mkdir("/dev/socket", 0755);
-    /* indicate that booting is in progress to background fw loaders, etc */
+    mount("devpts", "/dev/pts", "devpts", 0, NULL);
+    mount("proc", "/proc", "proc", 0, NULL);
+    mount("sysfs", "/sys", "sysfs", 0, NULL);
+
+        /* indicate that booting is in progress to background fw loaders, etc */
     close(open("/dev/.booting", O_WRONLY | O_CREAT, 0000));
 
         /* We must have some place other than / to create the
@@ -1146,12 +1154,6 @@ int main(int argc, char **argv)
     }
     /* run all property triggers based on current state of the properties */
     queue_builtin_action(queue_property_triggers_action, "queue_property_triggers");
-
-    /* run all device triggers based on current state of device nodes in /dev */
-    //    queue_builtin_action(queue_device_triggers_action, "queue_device_triggers");
-
-	/* Run actions when all boot up is done and init is ready */
-	action_for_each_trigger("ready", action_add_queue_tail);
 
 
 #if BOOTCHART
